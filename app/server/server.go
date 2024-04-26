@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io"
 	"log"
 	"net"
 )
@@ -39,7 +40,10 @@ func (s *Server) handleConnection(conn net.Conn) {
 	for {
 		buf := make([]byte, 256)
 
-		if _, err := conn.Read(buf); err != nil {
+		if _, err := conn.Read(buf); err == io.EOF {
+			log.Print("Closing connection")
+			return
+		} else if err != nil {
 			log.Printf("Failed to read from socket: %v", err)
 			continue
 		}
