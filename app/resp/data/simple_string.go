@@ -3,6 +3,7 @@ package data
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
@@ -15,6 +16,12 @@ var _ Data = &SimpleString{}
 
 func NewSimpleString() Data {
 	return &SimpleString{}
+}
+
+func NewSimpleStringWithData(data string) Data {
+	return &SimpleString{
+		data: data,
+	}
 }
 
 func (s *SimpleString) Identifier() string {
@@ -33,7 +40,11 @@ func (s *SimpleString) UnmarshalBinary(r *bytes.Reader) error {
 }
 
 func (s *SimpleString) MarshalBinary() ([]byte, error) {
-	return nil, nil
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("%v%v\r\n", s.Identifier(), s.Data()))
+
+	return []byte(sb.String()), nil
 }
 
 func (s *SimpleString) Data() string {

@@ -69,6 +69,8 @@ func (s *Server) handleMessage(conn net.Conn, msg []byte) {
 	switch actualCmd := cmd.(type) {
 	case *command.Echo:
 		response, err = s.handleEcho(actualCmd)
+	case *command.Ping:
+		response, err = s.handlePing()
 	}
 
 	if err != nil {
@@ -81,6 +83,12 @@ func (s *Server) handleMessage(conn net.Conn, msg []byte) {
 // TODO make more generic (return Data, then marshal)
 func (s *Server) handleEcho(echo *command.Echo) ([]byte, error) {
 	resp := data.NewBulkStringWithData(echo.Data())
+
+	return resp.MarshalBinary()
+}
+
+func (s *Server) handlePing() ([]byte, error) {
+	resp := data.NewSimpleStringWithData("PONG")
 
 	return resp.MarshalBinary()
 }
