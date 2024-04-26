@@ -4,6 +4,9 @@ import (
 	"io"
 	"log"
 	"net"
+
+	"github.com/codecrafters-io/redis-starter-go/app/resp/command"
+	"github.com/codecrafters-io/redis-starter-go/app/resp/data"
 )
 
 type Server struct {
@@ -38,7 +41,8 @@ func (s *Server) Serve() error {
 
 func (s *Server) handleConnection(conn net.Conn) {
 	for {
-		buf := make([]byte, 256)
+		// TODO bigger buffer
+		buf := make([]byte, 1024)
 
 		if _, err := conn.Read(buf); err == io.EOF {
 			log.Print("Closing connection")
@@ -55,7 +59,28 @@ func (s *Server) handleConnection(conn net.Conn) {
 }
 
 func (s *Server) handleMessage(conn net.Conn, msg []byte) {
-	log.Printf("%v", string(msg))
+	cmd, err := command.UnmarshalBinary(msg)
+	if err != nil {
+		log.Printf("Failed unmarshalling command: %v", err)
+		return
+	}
 
-	conn.Write([]byte("+PONG\r\n"))
+	var response []byte
+	switch actualCmd := cmd.(type) {
+	case *command.Echo:
+		response, err = s.handleEcho(actualCmd)
+	}
+
+	if err != nil {
+		log.Printf("Failed to handle command: %v", err)
+	} else {
+		conn.Write(response)
+	}
+}
+
+// TODO make more generic (return Data, then marshal)
+func (s *Server) handleEcho(echo *command.Echo) ([]byte, error) {
+	resp := data.NewBulkStringWithData(echo.Data())
+
+	return resp.MarshalBinary()
 }
