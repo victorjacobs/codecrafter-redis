@@ -54,6 +54,10 @@ func (d *Array) Elements() []Data {
 	return d.elements
 }
 
+func (d *Array) Len() int {
+	return len(d.elements)
+}
+
 func (d *Array) StringAt(pos int) (string, bool) {
 	if pos > len(d.Elements())-1 {
 		return "", false

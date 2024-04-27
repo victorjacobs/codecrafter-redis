@@ -68,6 +68,8 @@ func (s *Server) handleConnection(conn net.Conn) {
 }
 
 func (s *Server) handleMessage(conn net.Conn, msg []byte) {
+	log.Printf("Received: %v", string(msg))
+
 	cmd, err := command.UnmarshalBinary(msg)
 	if err != nil {
 		log.Printf("Failed unmarshalling command: %v", err)
@@ -121,7 +123,7 @@ func (s *Server) handlePing() (data.Data, error) {
 }
 
 func (s *Server) handleSet(set *command.Set) (data.Data, error) {
-	s.store.Set(set.Key(), set.Value())
+	s.store.SetWithExpiry(set.Key(), set.Value(), set.Expiry())
 
 	return data.NewSimpleStringWithData("OK"), nil
 }
