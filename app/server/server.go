@@ -83,6 +83,7 @@ func (s *Server) handleMessage(conn net.Conn, msg []byte) {
 	if responseBinary, err := response.MarshalBinary(); err != nil {
 		log.Printf("Failed to handle command: %v", err)
 	} else {
+		log.Printf("Sending %v", string(responseBinary))
 		conn.Write(responseBinary)
 	}
 }

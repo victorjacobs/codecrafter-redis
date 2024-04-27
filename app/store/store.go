@@ -39,7 +39,7 @@ func (s *Store) SetWithExpiry(k, v string, expiresAt int64) error {
 
 func (s *Store) Get(key string) (string, bool) {
 	if val, present := s.store[key]; present {
-		if val.expiresAt < time.Now().UnixNano() {
+		if val.expiresAt != 0 && val.expiresAt < time.Now().UnixNano() {
 			s.Delete(key)
 			return "", false
 		}
