@@ -10,12 +10,19 @@ import (
 
 type BulkString struct {
 	data string
+	null bool
 }
 
 var _ Data = &BulkString{}
 
 func NewBulkString() Data {
 	return &BulkString{}
+}
+
+func NewNullBulkString() Data {
+	return &BulkString{
+		null: true,
+	}
 }
 
 func NewBulkStringWithData(data string) Data {
@@ -47,8 +54,11 @@ func (b *BulkString) UnmarshalBinary(r *bytes.Reader) error {
 func (b *BulkString) MarshalBinary() ([]byte, error) {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("%v%d\r\n", b.Identifier(), len(b.data)))
-	sb.WriteString(fmt.Sprintf("%v\r\n", b.data))
+	if b.null {
+		sb.WriteString("$-1\r\n")
+	} else {
+		sb.WriteString(fmt.Sprintf("$%d\r\n%v\r\n", len(b.data), b.data))
+	}
 
 	return []byte(sb.String()), nil
 }

@@ -7,10 +7,14 @@ import (
 
 	"github.com/codecrafters-io/redis-starter-go/app/resp/command"
 	"github.com/codecrafters-io/redis-starter-go/app/resp/data"
+	"github.com/codecrafters-io/redis-starter-go/app/store"
 )
 
 type Server struct {
-	listener net.Listener
+	listener        net.Listener
+	store           *store.Store
+	commandChannel  chan command.Command
+	responseChannel chan data.Data
 }
 
 func NewServer(addr string) (*Server, error) {
@@ -20,12 +24,17 @@ func NewServer(addr string) (*Server, error) {
 	}
 
 	return &Server{
-		listener,
+		listener:        listener,
+		store:           store.NewStore(),
+		commandChannel:  make(chan command.Command),
+		responseChannel: make(chan data.Data),
 	}, nil
 }
 
 func (s *Server) Serve() error {
 	log.Printf("Serving on %v", s.listener.Addr())
+
+	go s.eventLoop()
 
 	for {
 		conn, err := s.listener.Accept()
@@ -65,30 +74,62 @@ func (s *Server) handleMessage(conn net.Conn, msg []byte) {
 		return
 	}
 
-	var response []byte
-	switch actualCmd := cmd.(type) {
-	case *command.Echo:
-		response, err = s.handleEcho(actualCmd)
-	case *command.Ping:
-		response, err = s.handlePing()
-	}
+	s.commandChannel <- cmd
 
-	if err != nil {
+	response := <-s.responseChannel
+
+	if responseBinary, err := response.MarshalBinary(); err != nil {
 		log.Printf("Failed to handle command: %v", err)
 	} else {
-		conn.Write(response)
+		conn.Write(responseBinary)
 	}
 }
 
-// TODO make more generic (return Data, then marshal)
-func (s *Server) handleEcho(echo *command.Echo) ([]byte, error) {
-	resp := data.NewBulkStringWithData(echo.Data())
+func (s *Server) eventLoop() {
+	for {
+		cmd := <-s.commandChannel
 
-	return resp.MarshalBinary()
+		log.Printf("Handling event %+v", cmd)
+
+		var err error
+		var response data.Data
+		switch actualCmd := cmd.(type) {
+		case *command.Echo:
+			response, err = s.handleEcho(actualCmd)
+		case *command.Ping:
+			response, err = s.handlePing()
+		case *command.Set:
+			response, err = s.handleSet(actualCmd)
+		case *command.Get:
+			response, err = s.handleGet(actualCmd)
+		}
+
+		if err != nil {
+			log.Printf("Failed handling command: %v", err)
+		}
+
+		s.responseChannel <- response
+	}
 }
 
-func (s *Server) handlePing() ([]byte, error) {
-	resp := data.NewSimpleStringWithData("PONG")
+func (s *Server) handleEcho(echo *command.Echo) (data.Data, error) {
+	return data.NewBulkStringWithData(echo.Data()), nil
+}
 
-	return resp.MarshalBinary()
+func (s *Server) handlePing() (data.Data, error) {
+	return data.NewSimpleStringWithData("PONG"), nil
+}
+
+func (s *Server) handleSet(set *command.Set) (data.Data, error) {
+	s.store.Set(set.Key(), set.Value())
+
+	return data.NewSimpleStringWithData("OK"), nil
+}
+
+func (s *Server) handleGet(get *command.Get) (data.Data, error) {
+	if value, present := s.store.Get(get.Key()); !present {
+		return data.NewNullBulkString(), nil
+	} else {
+		return data.NewBulkStringWithData(value), nil
+	}
 }

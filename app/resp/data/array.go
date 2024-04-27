@@ -54,6 +54,22 @@ func (d *Array) Elements() []Data {
 	return d.elements
 }
 
+func (d *Array) StringAt(pos int) (string, bool) {
+	if pos > len(d.Elements())-1 {
+		return "", false
+	}
+
+	el := d.Elements()[pos]
+
+	if simpleString, isSimpleString := el.(*SimpleString); isSimpleString {
+		return simpleString.Data(), true
+	} else if bulkString, isBulkString := el.(*BulkString); isBulkString {
+		return bulkString.Data(), true
+	}
+
+	return "", false
+}
+
 func init() {
 	registerDataType(func() Data {
 		return NewArray()

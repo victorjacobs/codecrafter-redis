@@ -2,6 +2,7 @@ package command
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/codecrafters-io/redis-starter-go/app/resp/data"
@@ -22,12 +23,12 @@ func UnmarshalBinary(dataBytes []byte) (Command, error) {
 		return nil, fmt.Errorf("expected command array to include at least 1 element, got %d elements", len(dataArray.Elements()))
 	}
 
-	commandName, isBulkString := dataArray.Elements()[0].(*data.BulkString)
-	if !isBulkString {
-		return nil, fmt.Errorf("expected first element of command array to be BulkString, got %T", dataArray.Elements()[0])
+	commandName, present := dataArray.StringAt(0)
+	if !present {
+		return nil, errors.New("no command name found")
 	}
 
-	command, err := GetCommand(commandName.Data())
+	command, err := GetCommand(commandName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get command: %v", err)
 	}
